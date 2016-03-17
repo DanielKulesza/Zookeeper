@@ -24,8 +24,8 @@ public class ClientDriver{
     static ZkConnector zkc = null;
     static String connection = null;
     static Socket jobTrackerSocket = null;
-    static ObjectOutputStream jobTrackerOut = null;
-    static ObjectInputStream jobTrackerIn = null;
+    private static ObjectOutputStream jobTrackerOut = null;
+    private static ObjectInputStream jobTrackerIn = null;
 
     public ClientDriver(){
 
@@ -45,7 +45,7 @@ public class ClientDriver{
                         
                             } };
 
-
+        //System.out.println("Client connected to Zookeeper.");                   
 	}
 
   	private void handleEvent(WatchedEvent event) {
@@ -83,8 +83,10 @@ public class ClientDriver{
     		jobTrackerOut = new ObjectOutputStream(jobTrackerSocket.getOutputStream());
     		jobTrackerIn = new ObjectInputStream(jobTrackerSocket.getInputStream());
 
-    	}catch (Exception e){
+            //System.out.println("Client connected to JobTracker.");
 
+    	}catch (Exception e){
+            e.printStackTrace();
     	}
     }
 
@@ -123,14 +125,10 @@ public class ClientDriver{
     	   System.out.println(output);
 
            zkc.close();
+           jobTrackerSocket.close();
 
-        }catch (IOException e){
-
-        }catch (ClassNotFoundException e){
-
-        }catch (InterruptedException e ){
-            
+        }catch (Exception e){
+            e.printStackTrace();
         }
-
     }
 }

@@ -22,13 +22,15 @@ public class JobHandlerThread implements Runnable{
 	static String finishedPath = "/finished";
 	static Watcher watcher = null;
 	static String hash = null;
-	static ObjectInputStream clientIn = null;
-	static ObjectOutputStream clientOut = null;
+	private ObjectInputStream clientIn = null;
+	private ObjectOutputStream clientOut = null;
 	static ZooKeeper zk = null;
+    static String connection = null;
 
 
 	public JobHandlerThread(Socket s, String connection){
 		this.socket = s;
+        this.connection = connection;
 		zkc = new ZkConnector();
 		try {
             zkc.connect(connection);
@@ -44,6 +46,15 @@ public class JobHandlerThread implements Runnable{
                                 handleEvent(event);
                         
                             } };
+
+        System.out.println("Connected to Zookeeper " + connection);
+
+        try{
+            this.clientOut = new ObjectOutputStream(this.socket.getOutputStream());
+            this.clientIn = new ObjectInputStream(this.socket.getInputStream());
+        }catch (Exception e){
+            e.printStackTrace();
+        }
 	}
 
 	private void handleEvent(WatchedEvent event) {
@@ -122,48 +133,60 @@ public class JobHandlerThread implements Runnable{
 	public void run(){
 		try{
 			
-			clientOut = new ObjectOutputStream(socket.getOutputStream());
-    		clientIn = new ObjectInputStream(socket.getInputStream());
+
     		
     		//get request String
-    		String request = (String)clientIn.readObject();
+    		String request = (String)this.clientIn.readObject();
+
+            System.out.println("Received request:  " + request);
 
     		String cmd = request.split(":")[0];
     		hash = request.split(":")[1]; 
+
+            System.out.println(cmd);
 
     		if(cmd.equals("job")){
     			Stat stat = zkc.exists(jobPath + "/" + hash,watcher);
     			if (stat == null){
     				createNodes();
     				String message = "Job submitted succesfully.";
-    				clientOut.writeObject(message);
+    				this.clientOut.writeObject(message);
+                    System.out.println(message);
 
     			}
     			else{
     				String message = "In progress.";
-    				clientOut.writeObject(message);
+    				this.clientOut.writeObject(message);
+                    System.out.println(message);
     			}
 
     		}
-    		if(cmd.equals("status")){
+    		else{
     			Stat stat = zkc.exists(jobPath + "/" + hash,watcher);
     			if (stat != null){
     				String message = "In progress";
-    				clientOut.writeObject(message);
+    				this.clientOut.writeObject(message);
+                    System.out.println(message);
     			}
     			else{
     				stat = zkc.exists(finishedPath + "/" + hash, watcher);
     				String failed = "Failed: ";
+                    String password = "";
     				if (stat != null){
     					byte[] data = zk.getData(finishedPath + "/" + hash,watcher,stat);
-    					String password = new String(data);
-    					if (password == null){
+    					
+                        if (data != null) password = new String(data);
+    					
+                        if (password == ""){
     						String passNotFound = "Password not found";
-    						clientOut.writeObject(failed + passNotFound);
+    						this.clientOut.writeObject(failed + passNotFound);
+                            System.out.println(failed + passNotFound);
     					}
     					else{
     						String passFound = "Password found: ";
-    						clientOut.writeObject(passFound + password);
+                            System.out.println(passFound + password);
+    						this.clientOut.writeObject(passFound + password);
+                            System.out.println(passFound + password);
     					}
     				}	
     				else{
@@ -171,22 +194,19 @@ public class JobHandlerThread implements Runnable{
   						//implement "Failed to complete job"
 
     					String notFound = "Job not found";
-    					clientOut.writeObject(failed + notFound);
+    					this.clientOut.writeObject(failed + notFound);
+                        System.out.println(failed + notFound);
     				}
     			}
     		}
+            System.out.println("Sent message");
             zkc.close();
+            this.socket.close();
 
 
-    	}catch (IOException e) {
+    	}catch (Exception e) {
 			e.printStackTrace();
-		} catch (ClassNotFoundException e) {
-			e.printStackTrace();
-		} catch (KeeperException e){
-			e.printStackTrace();
-		} catch (InterruptedException e){
-
-		}
+		} 
 	}
 }
 	

@@ -130,7 +130,8 @@ public class JobTracker {
         while(true){
             try{
                 Socket s = serverSocket.accept();
-                new JobHandlerThread(s, hosts).run();
+                System.out.println(s);
+                new Thread(new JobHandlerThread(s, hosts)).start();
             }catch(Exception e){
                 
             }
