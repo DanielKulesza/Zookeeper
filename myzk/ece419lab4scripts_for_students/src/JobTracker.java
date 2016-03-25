@@ -99,7 +99,6 @@ public class JobTracker {
 
 
         JobTracker jT = new jT();
-        jT.initListeners(); 
  
         System.out.println("Sleeping...");
         try {
