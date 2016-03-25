@@ -19,7 +19,7 @@ public class JobHandlerThread extends Runnable{
 	static String finishedPath = "/finished";
 	static Watcher watcher = null;
 	static String hash = null;
-	static 
+
 
 	public JobHandlerThread(Socket s, String connection){
 		this.socket = s;
@@ -37,6 +37,17 @@ public class JobHandlerThread extends Runnable{
                         
                             } };
 	}
+
+	private void handleEvent(WatchedEvent event) {
+  		String path = event.getPath();
+        EventType type = event.getType();
+        if(path.equalsIgnoreCase(myPath)) {
+
+        }
+        if (type == EventType.NodeCreated) {
+
+        }
+    }	
 
 	void createNodes(){
 		Stat stat = zkc.exists(jobPath, watcher);

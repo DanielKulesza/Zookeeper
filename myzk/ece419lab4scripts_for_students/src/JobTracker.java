@@ -42,7 +42,7 @@ public class JobTracker {
 
 
         //Create server socket for clients
-        connectionData =                     
+                
 
 
     }
