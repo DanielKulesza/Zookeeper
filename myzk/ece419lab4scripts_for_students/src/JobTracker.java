@@ -4,10 +4,17 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.Watcher.Event.EventType;
+import org.apache.zookeeper.Watcher;
+import org.apache.zookeeper.ZooKeeper;
+import org.apache.zookeeper.CreateMode;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.KeeperException.Code;
+
 
 import java.io.IOException;
-import java.io.net.Socket;
-import java.io.net.ServerSocket;
+import java.net.Socket;
+import java.net.ServerSocket;
+import java.net.InetAddress;
 
 public class JobTracker {
     
@@ -16,7 +23,7 @@ public class JobTracker {
     static ZooKeeper zk = null;
     static ZkConnector zkc = null;
     static String connection = null;
-    static String task_path = "/tasks"
+    static String task_path = "/tasks";
     static String hosts = null;
     static String connectionData = null;
     static int port = 9000;
@@ -50,19 +57,20 @@ public class JobTracker {
     private void checkpath() {
         Stat stat = zkc.exists(jobTrackerPath, watcher);
         if (stat == null) {
-            //send connection data to zookeeper for clientdriver lookup
-            connectionData = InetAddress.getLocalHost().getHostName() + ":" + port;
-
-            System.out.println("Creating " + jobTrackerPath);
-            Code ret = zkc.create(
-                        myPath,         // Path of znode
-                        connectionData,           // Data not needed.
-                        CreateMode.EPHEMERAL   // Znode type, set to EPHEMERAL.
-                        );
-            if (ret == Code.OK)System.out.println("Primary Job Tracker.");
-
-            //Create server socket for communication with client driver 
             try{
+                //send connection data to zookeeper for clientdriver lookup
+                connectionData = InetAddress.getLocalHost().getHostName() + ":" + port;
+
+                System.out.println("Creating " + jobTrackerPath);
+                Code ret = zkc.create(
+                            jobTrackerPath,         // Path of znode
+                            connectionData,         
+                            CreateMode.EPHEMERAL   // Znode type, set to EPHEMERAL.
+                            );
+                if (ret == Code.OK)System.out.println("Primary Job Tracker.");
+
+                //Create server socket for communication with client driver 
+            
                serverSocket = new ServerSocket(port);
             }catch (Exception e){
                 System.err.println(e);
@@ -98,7 +106,7 @@ public class JobTracker {
         }
 
 
-        JobTracker jT = new jT();
+        JobTracker jT = new JobTracker();
  
         System.out.println("Sleeping...");
         try {
@@ -108,8 +116,12 @@ public class JobTracker {
         jT.checkpath();
 
         while(true){
-            Socket s = serverSocket.accept();
-            new JobHandlerThread(s, hosts).run();
+            try{
+                Socket s = serverSocket.accept();
+                new JobHandlerThread(s, hosts).run();
+            }catch(Exception e){
+                
+            }
         }
 
     }

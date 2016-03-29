@@ -4,14 +4,17 @@ import org.apache.zookeeper.CreateMode;
 import org.apache.zookeeper.ZooDefs.Ids;
 import org.apache.zookeeper.data.Stat;
 import org.apache.zookeeper.Watcher.Event.EventType;
+import org.apache.zookeeper.WatchedEvent;
+import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.KeeperException;
 
 import java.io.IOException;
-import java.io.net.Socket;
-import java.io.net.ServerSocket;
+import java.net.Socket;
+import java.net.ServerSocket;
 import java.io.ObjectOutputStream;
 import java.io.ObjectInputStream;
 
-public class JobHandlerThread extends Runnable{
+public class JobHandlerThread implements Runnable{
 
 	static Socket socket = null;
 	static ZkConnector zkc = null;
@@ -19,16 +22,21 @@ public class JobHandlerThread extends Runnable{
 	static String finishedPath = "/finished";
 	static Watcher watcher = null;
 	static String hash = null;
+	static ObjectInputStream clientIn = null;
+	static ObjectOutputStream clientOut = null;
+	static ZooKeeper zk = null;
 
 
 	public JobHandlerThread(Socket s, String connection){
 		this.socket = s;
 		zkc = new ZkConnector();
 		try {
-            zkc.connect(hosts);
+            zkc.connect(connection);
         } catch(Exception e) {
             System.out.println("Zookeeper connect "+ e.getMessage());
         }
+
+        zk = zkc.getZooKeeper();
 
         watcher = new Watcher() { // Anonymous Watcher
                             @Override
@@ -41,7 +49,7 @@ public class JobHandlerThread extends Runnable{
 	private void handleEvent(WatchedEvent event) {
   		String path = event.getPath();
         EventType type = event.getType();
-        if(path.equalsIgnoreCase(myPath)) {
+        if(path.equalsIgnoreCase(jobPath)) {
 
         }
         if (type == EventType.NodeCreated) {
@@ -91,8 +99,8 @@ public class JobHandlerThread extends Runnable{
 		}
 
 		int i; //partition number = i
-		for(int i=0; i<100; i++){
-			taskPath = jobPath + "/" + hash + "/" + i;
+		for(i=0; i<100; i++){
+			String taskPath = jobPath + "/" + hash + "/" + i;
 			stat = zkc.exists(taskPath, watcher);
 			if (stat == null){
 				System.out.println("Creating " + taskPath);
@@ -124,7 +132,7 @@ public class JobHandlerThread extends Runnable{
     		hash = request.split(":")[1]; 
 
     		if(cmd.equals("job")){
-    			Stat stat = zkc.exists(jobPath + "/" + hash);
+    			Stat stat = zkc.exists(jobPath + "/" + hash,watcher);
     			if (stat == null){
     				createNodes();
     				String message = "Job submitted succesfully.";
@@ -132,18 +140,52 @@ public class JobHandlerThread extends Runnable{
 
     			}
     			else{
-    				String message = "Job in progress."
+    				String message = "In progress.";
     				clientOut.writeObject(message);
     			}
 
     		}
-    		else(cmd.equals("status")){
-    			
+    		if(cmd.equals("status")){
+    			Stat stat = zkc.exists(jobPath + "/" + hash,watcher);
+    			if (stat != null){
+    				String message = "In Progress";
+    				clientOut.writeObject(message);
+    			}
+    			else{
+    				stat = zkc.exists(finishedPath + "/" + hash, watcher);
+    				String failed = "Failed: ";
+    				if (stat != null){
+    					byte[] data = zk.getData(finishedPath + "/" + hash,watcher,stat);
+    					String password = new String(data);
+    					if (password == null){
+    						String passNotFound = "Password not found";
+    						clientOut.writeObject(failed + passNotFound);
+    					}
+    					else{
+    						String passFound = "Password found: ";
+    						clientOut.writeObject(passFound + password);
+    					}
+    				}	
+    				else{
+
+  						//implement "Failed to complete job"
+
+    					String notFound = "Job not found";
+    					clientOut.writeObject(failed + notFound);
+    				}
+    			}
     		}
 
 
     	}catch (IOException e) {
-		e.printStackTrace();
-	} catch (ClassNotFoundException e) {
-		e.printStackTrace();
+			e.printStackTrace();
+		} catch (ClassNotFoundException e) {
+			e.printStackTrace();
+		} catch (KeeperException e){
+			e.printStackTrace();
+		} catch (InterruptedException e){
+
+		}
 	}
+}
+	

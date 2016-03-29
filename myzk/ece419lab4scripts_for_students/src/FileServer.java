@@ -1,3 +1,6 @@
+import org.apache.zookeeper.KeeperException;
+import org.apache.zookeeper.KeeperException.Code;
+import org.apache.zookeeper.WatchedEvent;
 import org.apache.zookeeper.Watcher;
 import org.apache.zookeeper.ZooKeeper;
 import org.apache.zookeeper.CreateMode;
@@ -31,7 +34,9 @@ public class FileServer {
         } catch(Exception e) {
             System.out.println("Zookeeper connect "+ e.getMessage());
         }
- 
+        
+        zk = zkc.getZooKeeper();
+
         watcher = new Watcher() { // Anonymous Watcher
                             @Override
                             public void process(WatchedEvent event) {
@@ -45,20 +50,21 @@ public class FileServer {
         Stat stat = zkc.exists(fileServerPath, watcher);
         if (stat == null) {
             //send connection data to zookeeper for clientdriver lookup
-            connectionData = InetAddress.getLocalHost().getHostName() + ":" + port;
-
-            loadDictionary(path);
-
-            System.out.println("Creating " + fileServerPath);
-            Code ret = zkc.create(
-                        myPath,         // Path of znode
-                        connectionData,           // Data not needed.
-                        CreateMode.EPHEMERAL   // Znode type, set to EPHEMERAL.
-                        );
-            if (ret == Code.OK)System.out.println("Primary File Server.");
-
-            //Create server socket for communication with client driver 
             try{
+                connectionData = InetAddress.getLocalHost().getHostName() + ":" + port;
+
+                loadDictionary();
+
+                System.out.println("Creating " + fileServerPath);
+                Code ret = zkc.create(
+                            fileServerPath,         // Path of znode
+                            connectionData,          
+                            CreateMode.EPHEMERAL   // Znode type, set to EPHEMERAL.
+                            );
+                if (ret == Code.OK)System.out.println("Primary File Server.");
+
+                //Create server socket for communication with client driver 
+           
                serverSocket = new ServerSocket(port);
             }catch (Exception e){
                 System.err.println(e);
@@ -91,6 +97,7 @@ public class FileServer {
             while((line=br.readLine()) != null){
                 dictionary.add(line);
             }
+        }catch (Exception e){
         }
 
     }
@@ -106,7 +113,7 @@ public class FileServer {
             file = args[1];
         }
 
-
+        System.out.println(hosts);
         FileServer fS= new FileServer();
 
         System.out.println("Sleeping...");
@@ -117,12 +124,15 @@ public class FileServer {
         fS.checkpath();
 
         while(true){
-            Socket s = serverSocket.accept();
-            new FileServerThread(s, hosts, dictionary).run();
+            try{
+                Socket s = serverSocket.accept();
+                new FileServerThread(s, hosts, dictionary).run();
+            }catch (Exception e){
+
+            }
         }
 
-    }
 
-    
+    }
 
 }
