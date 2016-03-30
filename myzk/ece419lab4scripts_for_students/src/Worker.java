@@ -25,9 +25,12 @@ public class Worker{
 	static Socket fileServerSocket = null;
 	static ZkConnector zkc = null;
     static ZooKeeper zk = null;
+	static String myPath = null;
 	static String fsPath = "/FileServer";
 	static String jobPath = "/jobs";
 	static String finishedPath = "/finished";
+	static String workerPath = "/worker";
+	static String currentJob = null;
 	static Watcher watcher = null;
 	static String hash = null;
     static Socket fsSocket = null;
@@ -92,6 +95,45 @@ public class Worker{
             stat = zkc.exists(fsPath, watcher);
         }
         System.out.println("File Server is up.");
+
+		//create main worker node
+		stat = zkc.exists(workerPath, watcher);
+		if(stat == null) {
+		    System.out.println("Creating " + workerPath);
+		    Code ret = zkc.create(
+		                      workerPath,
+		                      null,
+		                      CreateMode.PERSISTENT
+		                      );
+		
+		    if (ret == Code.OK) {
+		        System.out.println("Created " + workerPath);
+		    }
+		}
+		
+		List<String> workers = null;
+		try { workers = zk.getChildren(jobPath, watcher);} catch (Exception e){}
+		String id = String.valueOf(workers.size());
+		
+		stat = zkc.exists(workerPath + "/" + id, watcher);
+		while(stat != null) {
+			id = String.valueOf(Integer.parseInt(id) + 1);
+			stat = zkc.exists(workerPath + "/" + id, watcher);
+		}
+		if(stat == null) {
+		    System.out.println("Creating " + workerPath + "/" + id);
+		    Code ret = zkc.create(
+		                      workerPath + "/" + id,
+		                      currentJob,
+		                      CreateMode.EPHEMERAL
+		                      );
+		
+		    if (ret == Code.OK) {
+		        System.out.println("Created " + workerPath + "/" + id);
+		    }
+		}
+
+		myPath = workerPath + "/" + id;
         
         stat = zkc.exists(jobPath, watcher);
         while (stat == null) {
@@ -134,7 +176,8 @@ public class Worker{
 
             while(!found && i < jobs.size()) {
                 System.out.println("Looking for job");
-                try {partitions = zk.getChildren(jobPath + "/" + jobs.get(i), watcher);
+                try {
+					partitions = zk.getChildren(jobPath + "/" + jobs.get(i), watcher);
                     System.out.println(partitions + " " + partitions.size());
                     j = 0;
 
@@ -175,7 +218,17 @@ public class Worker{
                 String jobHash = jobs.get(i);
                 String partitionID = partitions.get(j);
                 String password = null;
-                
+				currentJob = jobHash + ":" + partitionID;
+				
+				//set  myPath data to currentJob
+				try{ 
+					zk.setData(myPath, currentJob.getBytes(), -1);
+
+				} catch (Exception e){
+                    e.printStackTrace();
+                }                
+
+
                 try {
                     fsOut.writeObject(partitionID);
                 } catch (Exception e) {

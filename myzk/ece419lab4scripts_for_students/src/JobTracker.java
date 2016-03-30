@@ -24,6 +24,7 @@ public class JobTracker {
     static ZkConnector zkc = null;
     static String connection = null;
     static String task_path = "/tasks";
+	static String workerPath = "/worker";
     static String hosts = null;
     static String connectionData = null;
     static int port = 9000;
@@ -93,6 +94,20 @@ public class JobTracker {
                 checkpath(); // re-enable the watch
             }
         }
+		String temp[] = path.split("/");
+		if(temp[0].equals(workerPath)) {
+			if(type == EventType.NodeDeleted) {
+				try{
+					Stat stat = null;
+					byte[] data = zk.getData(path, watcher, stat);
+					String[] jobData = new String(data).split(":");
+					zk.setData("/jobs" + "/" + jobData[0] + "/" + jobData[1], null, -1);
+				} catch (Exception e){
+                    e.printStackTrace();
+                } 
+			}
+		}
+		
     }
 
     public static void main(String[] args) {
