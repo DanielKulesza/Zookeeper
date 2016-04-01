@@ -101,6 +101,7 @@ public class JobTracker {
 					Stat stat = null;
 					byte[] data = zk.getData(path, watcher, stat);
 					String[] jobData = new String(data).split(":");
+					stat = zkc.exists("/jobs" + "/" + jobData[0] + "/" + jobData[1], watcher);
 					zk.setData("/jobs" + "/" + jobData[0] + "/" + jobData[1], null, -1);
 				} catch (Exception e){
                     e.printStackTrace();
