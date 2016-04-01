@@ -68,6 +68,7 @@ public class Worker{
     
     public void connectToFS(String hostname, int port) {
         try{
+			System.out.println("Connecting to: " + hostname + ":"  + port);
             fsSocket = new Socket(hostname, port);
             fsOut = new ObjectOutputStream(fsSocket.getOutputStream());
             fsIn = new ObjectInputStream(fsSocket.getInputStream());
@@ -148,7 +149,9 @@ public class Worker{
             int port = Integer.parseInt(new String(data).split(":")[1]);
             worker.connectToFS(hostname, port);
             System.out.println("Connected to Primary File Server");
-        }catch (Exception e){}
+        }catch (Exception e){
+			e.printStackTrace();
+		}
 
 
         List<String> jobs = null;
