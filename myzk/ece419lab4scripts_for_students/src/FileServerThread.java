@@ -47,10 +47,9 @@ public class FileServerThread implements Runnable{
                         
                             } };
 
-        socket = s;
+
         try{
-        	workerOut = new ObjectOutputStream(socket.getOutputStream());
-        	workerIn = new ObjectInputStream(socket.getInputStream());
+        	
         }catch (Exception e){
 
         }
@@ -76,10 +75,18 @@ public class FileServerThread implements Runnable{
 
 
 	public void run(){
+
+
 		try{
+			ObjectOutputStream workerOut = new ObjectOutputStream(this.socket.getOutputStream());
+            ObjectInputStream workerIn = new ObjectInputStream(this.socket.getInputStream());
 			while(true){
 				//get request String
+
+
 				String data = (String)workerIn.readObject();
+				System.out.println(data);
+
 				int partitionId = Integer.parseInt(data);
 
 				if (partitionId+1 == numPartitions){
@@ -91,7 +98,7 @@ public class FileServerThread implements Runnable{
 					endIndex = (partitionId+1)*partitionSize - 1;
 				}
 			
-				System.out.println("Sending out partitionId " + partitionId + " with indices " + startIndex + "-" + endIndex + "to " + connection);
+				System.out.println("Sending out partitionId " + partitionId + " with indices " + startIndex + "-" + endIndex + "to " + socket);
 
 				ArrayList<String> partition = new ArrayList();
 

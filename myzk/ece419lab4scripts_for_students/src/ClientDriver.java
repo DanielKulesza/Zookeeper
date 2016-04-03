@@ -121,10 +121,15 @@ public class ClientDriver{
 
     	   String output = (String)jobTrackerIn.readObject();
     	   System.out.println(output);
+
+           zkc.close();
+
         }catch (IOException e){
 
         }catch (ClassNotFoundException e){
 
+        }catch (InterruptedException e ){
+            
         }
 
     }

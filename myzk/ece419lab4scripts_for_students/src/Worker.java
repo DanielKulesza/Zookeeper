@@ -34,8 +34,8 @@ public class Worker{
 	static Watcher watcher = null;
 	static String hash = null;
     static Socket fsSocket = null;
-    static ObjectOutputStream fsOut = null;
-    static ObjectInputStream fsIn = null;
+    private static ObjectOutputStream fsOut = null;
+    private static ObjectInputStream fsIn = null;
 
 	public Worker(String hosts) {
 		zkc = new ZkConnector();
@@ -54,6 +54,8 @@ public class Worker{
 		                    
 		    }
 		};
+        this.fsOut = null;
+        this.fsOut = null;
 		
 	}
 
@@ -113,8 +115,10 @@ public class Worker{
 		}
 		
 		List<String> workers = null;
+        String id = null;
 		try { workers = zk.getChildren(jobPath, watcher);} catch (Exception e){}
-		String id = String.valueOf(workers.size());
+        if (id ==null) id = "0";
+        else id = String.valueOf(workers.size());
 		
 		stat = zkc.exists(workerPath + "/" + id, watcher);
 		while(stat != null) {
@@ -233,6 +237,7 @@ public class Worker{
 
 
                 try {
+                    System.out.println("Sending partition " + partitionID);
                     fsOut.writeObject(partitionID);
                 } catch (Exception e) {
                     System.out.println("Primary File Server has disconnected");

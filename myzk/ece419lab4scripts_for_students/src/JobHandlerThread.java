@@ -148,7 +148,7 @@ public class JobHandlerThread implements Runnable{
     		if(cmd.equals("status")){
     			Stat stat = zkc.exists(jobPath + "/" + hash,watcher);
     			if (stat != null){
-    				String message = "In Progress";
+    				String message = "In progress";
     				clientOut.writeObject(message);
     			}
     			else{
@@ -175,6 +175,7 @@ public class JobHandlerThread implements Runnable{
     				}
     			}
     		}
+            zkc.close();
 
 
     	}catch (IOException e) {

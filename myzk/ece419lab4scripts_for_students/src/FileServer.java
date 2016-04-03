@@ -21,7 +21,7 @@ public class FileServer {
     static String connection = null;
     static String hosts = null;
     static String connectionData = null;
-    static int port = 9001;
+    static int port = 9002;
     static ServerSocket serverSocket = null;
     static ArrayList<String> dictionary = null;
     static String file = null;
@@ -83,7 +83,7 @@ public class FileServer {
             }
             if (type == EventType.NodeCreated) {
                 System.out.println(fileServerPath + " created!");       
-                try{ Thread.sleep(5000); } catch (Exception e) {}
+                try{ Thread.sleep(50); } catch (Exception e) {}
                 checkpath(); // re-enable the watch
             }
         }
@@ -116,17 +116,15 @@ public class FileServer {
         System.out.println(hosts);
         FileServer fS= new FileServer();
 
-        System.out.println("Sleeping...");
-        try {
-            Thread.sleep(5000);
-        } catch (Exception e) {}
+
         
         fS.checkpath();
 
         while(true){
             try{
                 Socket s = serverSocket.accept();
-                new FileServerThread(s, hosts, dictionary).run();
+                System.out.println(s);
+                new Thread(new FileServerThread(s, hosts, dictionary)).start();
             }catch (Exception e){
 
             }

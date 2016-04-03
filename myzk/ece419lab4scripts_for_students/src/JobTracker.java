@@ -90,7 +90,7 @@ public class JobTracker {
             }
             if (type == EventType.NodeCreated) {
                 System.out.println(jobTrackerPath + " created!");       
-                try{ Thread.sleep(5000); } catch (Exception e) {}
+                try{ Thread.sleep(50); } catch (Exception e) {}
                 checkpath(); // re-enable the watch
             }
         }
@@ -123,11 +123,7 @@ public class JobTracker {
 
 
         JobTracker jT = new JobTracker();
- 
-        System.out.println("Sleeping...");
-        try {
-            Thread.sleep(5000);
-        } catch (Exception e) {}
+
         
         jT.checkpath();
 

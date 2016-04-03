@@ -1,0 +1,6 @@
+Instrumenting org/apache/zookeeper/ClientCnxn$EventThread.queueEvent (Lorg/apache/zookeeper/WatchedEvent;)V.
+
+localhost:5999
+Found org/apache/zookeeper/ClientCnxn$EventThread
+Found queueEvent Signature (Lorg/apache/zookeeper/WatchedEvent;)V
+OK, well, I think I'll just crash here...
