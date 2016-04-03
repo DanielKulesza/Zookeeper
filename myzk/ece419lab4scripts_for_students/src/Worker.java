@@ -207,7 +207,7 @@ public class Worker{
                     }
                 
                     if(!status.equals("working")){
-                        System.out.println("Found a job!");
+                        System.out.println("Found a job!" + jobPath + "/" + jobs.get(i) + "/" + partitions.get(j));
                         zk.setData(jobPath + "/" + jobs.get(i) + "/" + partitions.get(j), "working".getBytes(), -1);
                         found = true;
                         break;

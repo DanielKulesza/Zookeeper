@@ -16,7 +16,7 @@ import java.util.*;
 
 public class FileServerThread implements Runnable{
 
-	static Socket socket = null;
+	private Socket socket = null;
 	static ZkConnector zkc = null;
 	static Watcher watcher = null;
 	static ObjectOutputStream workerOut = null;
@@ -31,7 +31,7 @@ public class FileServerThread implements Runnable{
 
 
 	public FileServerThread(Socket s, String connection, ArrayList<String> dictionary){
-		this.socket = s;
+		socket = s;
 		this.connection = connection;
 		zkc = new ZkConnector();
 		try {
@@ -78,8 +78,8 @@ public class FileServerThread implements Runnable{
 
 
 		try{
-			ObjectOutputStream workerOut = new ObjectOutputStream(this.socket.getOutputStream());
-            ObjectInputStream workerIn = new ObjectInputStream(this.socket.getInputStream());
+			ObjectOutputStream workerOut = new ObjectOutputStream(socket.getOutputStream());
+            ObjectInputStream workerIn = new ObjectInputStream(socket.getInputStream());
 			while(true){
 				//get request String
 
