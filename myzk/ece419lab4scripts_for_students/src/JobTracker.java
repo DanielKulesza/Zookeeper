@@ -70,6 +70,10 @@ public class JobTracker {
                             );
                 if (ret == Code.OK)System.out.println("Primary Job Tracker.");
 
+
+
+
+
                 //Create server socket for communication with client driver 
             
                serverSocket = new ServerSocket(port);
@@ -77,7 +81,8 @@ public class JobTracker {
                 System.err.println(e);
                 System.exit(1);
             }
-        } 
+        }
+
     }
 
     private void handleEvent(WatchedEvent event) {
@@ -94,21 +99,6 @@ public class JobTracker {
                 checkpath(); // re-enable the watch
             }
         }
-		String temp[] = path.split("/");
-		if(temp[0].equals(workerPath)) {
-			if(type == EventType.NodeDeleted) {
-				try{
-					Stat stat = null;
-					byte[] data = zk.getData(path, watcher, stat);
-					String[] jobData = new String(data).split(":");
-					stat = zkc.exists("/jobs" + "/" + jobData[0] + "/" + jobData[1], watcher);
-					zk.setData("/jobs" + "/" + jobData[0] + "/" + jobData[1], null, -1);
-				} catch (Exception e){
-                    e.printStackTrace();
-                } 
-			}
-		}
-		
     }
 
     public static void main(String[] args) {

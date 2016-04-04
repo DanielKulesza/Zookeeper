@@ -155,6 +155,7 @@ public class JobHandlerThread implements Runnable{
 
     			}
     			else{
+                    createNodes();
     				String message = "In progress.";
     				this.clientOut.writeObject(message);
                     System.out.println(message);

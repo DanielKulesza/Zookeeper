@@ -37,6 +37,7 @@ public class Worker{
     private static ObjectOutputStream fsOut = null;
     private static ObjectInputStream fsIn = null;
 
+
 	public Worker(String hosts) {
 		zkc = new ZkConnector();
 		try {
@@ -66,19 +67,96 @@ public class Worker{
 		if (path.equalsIgnoreCase(finishedPath)) {
 
 		}
+        String temp[] = path.split("/");
+        if(temp[1].equals("worker")) {
+            if(type == EventType.NodeDeleted) {
+                try{
+                    System.out.println("path deleted----------" + path);
+                    Stat stat = null;
+                    byte[] data = zk.getData(path, watcher, stat);
+                    if (data != null){
+                        String[] jobData = new String(data).split(":");
+                        stat = zkc.exists("/jobs" + "/" + jobData[0] + "/" + jobData[1], watcher);
+                        zk.setData("/jobs" + "/" + jobData[0] + "/" + jobData[1], null, -1);
+                        System.out.println("Worker " + path + " Failed, reseting partition: " + jobData);
+                    }
+                } catch (Exception e){
+                    e.printStackTrace();
+                } 
+            }
+        }
 	}
     
-    public void connectToFS(String hostname, int port) {
+    public void connectToFS() {
+        Stat stat = null;
         try{
+
+            stat = zkc.exists(fsPath, watcher);
+            while (stat == null) {
+                System.out.println("File server is down.");
+                stat = zkc.exists(fsPath, watcher);
+            }
+
+            System.out.println("File Server is up.");
+
+            byte[] data = zk.getData(fsPath, watcher, stat);
+            String hostname = new String(data).split(":")[0];
+            int port = Integer.parseInt(new String(data).split(":")[1]);
+
+
+
 			System.out.println("Connecting to: " + hostname + ":"  + port);
             fsSocket = new Socket(hostname, port);
             fsOut = new ObjectOutputStream(fsSocket.getOutputStream());
             fsIn = new ObjectInputStream(fsSocket.getInputStream());
-        }catch (Exception e){
 
+        }catch (Exception e){
+            try {
+                Thread.sleep(5000);
+
+                byte[] data = zk.getData(fsPath, watcher, stat);
+                String hostname = new String(data).split(":")[0];
+                int port = Integer.parseInt(new String(data).split(":")[1]);
+
+
+
+                System.out.println("Connecting to: " + hostname + ":"  + port);
+                fsSocket = new Socket(hostname, port);
+                fsOut = new ObjectOutputStream(fsSocket.getOutputStream());
+                fsIn = new ObjectInputStream(fsSocket.getInputStream());
+            }catch(Exception f){
+                f.printStackTrace();
+            }
         }
     }
 
+    public synchronized String setID(){
+        List<String> workers = null;
+        String id = null;
+        try { workers = zk.getChildren(jobPath, watcher);} catch (Exception e){}
+        if (id ==null) id = "0";
+        else id = String.valueOf(workers.size());
+        
+        Stat stat = zkc.exists(workerPath + "/" + id, watcher);
+        while(stat != null) {
+            id = String.valueOf(Integer.parseInt(id) + 1);
+            stat = zkc.exists(workerPath + "/" + id, watcher);
+        }
+        if(stat == null) {
+            System.out.println("Creating " + workerPath + "/" + id);
+            Code ret = zkc.create(
+                              workerPath + "/" + id,
+                              currentJob,
+                              CreateMode.EPHEMERAL
+                              );
+        
+            if (ret == Code.OK) {
+                System.out.println("Created " + workerPath + "/" + id);
+            }
+        }
+
+        return (workerPath + "/" + id);
+    }
 
 
 	public static void main (String[] args){
@@ -92,15 +170,13 @@ public class Worker{
         System.out.println("Connected to Zookeeper");
 
         
-        Stat stat = zkc.exists(fsPath, watcher);
-        while (stat == null) {
-            try {Thread.sleep(5);} catch (Exception e){}
-            stat = zkc.exists(fsPath, watcher);
-        }
-        System.out.println("File Server is up.");
+        worker.connectToFS();
 
+        System.out.println("Connected to Primary File Server");
+
+        Stat stat = null;
 		//create main worker node
-		stat = zkc.exists(workerPath, watcher);
+		/*stat = zkc.exists(workerPath, watcher);
 		if(stat == null) {
 		    System.out.println("Creating " + workerPath);
 		    Code ret = zkc.create(
@@ -138,8 +214,10 @@ public class Worker{
 		    }
 		}
 
-		myPath = workerPath + "/" + id;
+		myPath = workerPath + "/" + id;*/
         
+        //myPath = worker.setID();
+
         stat = zkc.exists(jobPath, watcher);
         while (stat == null) {
             try {Thread.sleep(5);} catch (Exception e){}
@@ -147,15 +225,8 @@ public class Worker{
         }
         System.out.println("Job Path is up.");
         
-        try{
-            byte[] data = zk.getData(fsPath, watcher, stat);
-            String hostname = new String(data).split(":")[0];
-            int port = Integer.parseInt(new String(data).split(":")[1]);
-            worker.connectToFS(hostname, port);
-            System.out.println("Connected to Primary File Server");
-        }catch (Exception e){
-			e.printStackTrace();
-		}
+
+        
 
 
         List<String> jobs = null;
@@ -190,14 +261,22 @@ public class Worker{
 
 
                     String status = "";
+                    String work = "";
                     byte [] data;
+                    Double time = 0.0;
+                    Double time_diff = 0.0;
                     while(j < partitions.size()){
                         String working_path = jobPath + "/" + jobs.get(i) + "/" + partitions.get(j);
                         data = zk.getData(working_path, watcher, stat);
-                        if (data != null) status = new String(data);
-                        else status = "";
+                        if (data != null){
+                            status = new String(data);
+                            work = status.split(":")[0];
+                            time = Double.parseDouble(status.split(":")[1]);
+                        }
+                        else work = "";
                         
-                        if(status.equals("working")){
+                        time_diff = System.currentTimeMillis()-time;
+                        if(work.equals("working") &&  time_diff< 1000){
                             j++;
                             System.out.println(working_path + " is already being worked on.");
                         }
@@ -206,9 +285,11 @@ public class Worker{
                         }
                     }
                 
-                    if(!status.equals("working")){
+                    if(!work.equals("working") || time_diff >= 1000){
                         System.out.println("Found a job!" + jobPath + "/" + jobs.get(i) + "/" + partitions.get(j));
-                        zk.setData(jobPath + "/" + jobs.get(i) + "/" + partitions.get(j), "working".getBytes(), -1);
+                        //zk.setData(myPath, (jobs.get(i) + ":" + partitions.get(j)).getBytes(), -1);
+                        String working = "working:" + System.currentTimeMillis();
+                        zk.setData(jobPath + "/" + jobs.get(i) + "/" + partitions.get(j),  working.getBytes(), -1);
                         found = true;
                         break;
 //                    String[] taskSplitted = jobData.split("-");
@@ -228,37 +309,33 @@ public class Worker{
 				currentJob = jobHash + ":" + partitionID;
 				
 				//set  myPath data to currentJob
-				try{ 
+				/*try{ 
 					zk.setData(myPath, currentJob.getBytes(), -1);
 
 				} catch (Exception e){
                     e.printStackTrace();
-                }                
+                } */               
 
-
+                ArrayList<String> dictPartition = null;
                 try {
                     System.out.println("Sending partition " + partitionID);
                     fsOut.writeObject(partitionID);
+                    dictPartition = (ArrayList<String>) fsIn.readObject();
+
                 } catch (Exception e) {
                     System.out.println("Primary File Server has disconnected");
                     // watcher will update info when backup becomes the new boss
-                    while (zkc.exists(fsPath, watcher) == null){}
-                    try {Thread.sleep(1000);} catch (Exception f){}
-                    
-                        
-                    try{    
-                        byte[] data = zk.getData(fsPath, watcher, stat);
-                        String hostname = new String(data).split(":")[0];
-                        int port = Integer.parseInt(new String(data).split(":")[1]);
-                        worker.connectToFS(hostname, port);
+                    try {
+                        Thread.sleep(5000);   
+                        worker.connectToFS();
                         fsOut.writeObject(partitionID);
-                    }catch (Exception f){}
+                        dictPartition = (ArrayList<String>) fsIn.readObject();
+                    }catch (Exception f){
+                        f.printStackTrace();
+                    }
                 }
                 
 
-
-                ArrayList<String> dictPartition = null;
-                try { dictPartition = (ArrayList<String>) fsIn.readObject();} catch (Exception e ){}    
                 
                 try {
                     MessageDigest md5 = MessageDigest.getInstance("MD5");
@@ -286,7 +363,7 @@ public class Worker{
                 List<String> partitionsLeft = null;
                 try { partitionsLeft = zk.getChildren(jobPath + "/" + jobHash, watcher);}catch (Exception e){};
 
-                if(partitionsLeft.size()==0){
+                if(partitionsLeft != null && partitionsLeft.size()==0){
                     if(password == null) {
                         stat = zkc.exists(jobPath + "/" + jobHash, watcher);
                         if(stat != null) try{zk.delete(jobPath + "/" + jobHash, -1);}catch (Exception e){}

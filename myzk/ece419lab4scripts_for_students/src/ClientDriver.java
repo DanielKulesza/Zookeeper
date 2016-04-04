@@ -94,7 +94,7 @@ public class ClientDriver{
         Stat stat = null;
         try{
     	   stat = zk.exists(jobTrackerPath, watcher);
-           System.out.println("STAT ------------------------------" + stat);
+           //System.out.println("STAT ------------------------------" + stat);
            while(stat == null){
             System.out.println("Job Tracker is not running");
             stat = zk.exists(jobTrackerPath, watcher);
@@ -106,8 +106,8 @@ public class ClientDriver{
     	    String hostName = new String(data).split(":")[0];
     	    String port = new String(data).split(":")[1];
 
-            System.out.println("hostname ----------------------" + hostName);
-            System.out.println("port ----------------------" + port);
+            //System.out.println("hostname ----------------------" + hostName);
+            //System.out.println("port ----------------------" + port);
 
     		jobTrackerSocket = new Socket(hostName, Integer.parseInt(port));
     		jobTrackerOut = new ObjectOutputStream(jobTrackerSocket.getOutputStream());
@@ -117,6 +117,22 @@ public class ClientDriver{
 
     	}catch (Exception e){
             e.printStackTrace();
+
+            try{
+                Thread.sleep(5000);
+                byte[] data = zk.getData(jobTrackerPath,watcher,stat);
+                String hostName = new String(data).split(":")[0];
+                String port = new String(data).split(":")[1];
+
+                //System.out.println("hostname ----------------------" + hostName);
+                //System.out.println("port ----------------------" + port);
+
+                jobTrackerSocket = new Socket(hostName, Integer.parseInt(port));
+                jobTrackerOut = new ObjectOutputStream(jobTrackerSocket.getOutputStream());
+                jobTrackerIn = new ObjectInputStream(jobTrackerSocket.getInputStream());
+            }catch (Exception f){
+                f.printStackTrace();
+            }
     	}
     }
 
@@ -156,7 +172,32 @@ public class ClientDriver{
            jobTrackerSocket.close();
 
         }catch (Exception e){
-            e.printStackTrace();
+            //e.printStackTrace();
+
+
+        try{
+            Thread.sleep(5000);
+            cD.connectJobTracker();
+
+            if(command.equals("job")){
+                String job = new String("job:" + hash);
+                jobTrackerOut.writeObject(job);
+            }
+            if(command.equals("status")){
+                String status = new String("status:" + hash);
+                jobTrackerOut.writeObject(status);
+
+            }
+
+           String output = (String)jobTrackerIn.readObject();
+           System.out.println(output);
+
+           zkc.close();
+           jobTrackerSocket.close();
+          }catch (Exception f){
+            f.printStackTrace();
+          }
+
         }
     }
 }
